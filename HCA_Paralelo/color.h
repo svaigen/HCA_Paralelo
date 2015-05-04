@@ -7,6 +7,8 @@
 #ifndef __COLOR_H
 #define __COLOR_H
 
+#include <stdio.h>
+
 /* Define kind of stop criterion (to be used) */
 #define FLAG_TIME		1
 #define FLAG_CYCLE		2
@@ -22,6 +24,7 @@
  * of vertices into color classes */
 #define FLAG_S_ASSIGN		256
 #define FLAG_S_PARTITION	512
+
 
 #define init_flag(flag) flag = 0
 #define set_flag(flag, pos) flag = flag | pos

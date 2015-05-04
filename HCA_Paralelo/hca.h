@@ -20,6 +20,7 @@
 #define HCA_DEFAULT_LS 2000
 #define HCA_DEFAULT_CYC 5000
 #define HCA_DEFAULT_DIVERSITY 20
+#define HCA_DEFAULT_THREADS 1
 
 struct hca_t {
   int sizeof_population;

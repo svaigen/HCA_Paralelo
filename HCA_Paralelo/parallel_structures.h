@@ -8,6 +8,8 @@
 #ifndef PARALLEL_STRUCTURES_H
 #define	PARALLEL_STRUCTURES_H
 
+#include <semaphore.h>
+#include <pthread.h>
 #include "color.h"
 
 
@@ -46,11 +48,11 @@ sem_t sem_mutex_populacao;
 
 
 void buffer_tarefas_inicializa(int tamanho, struct_buffer_tarefas* b);
-void buffer_tarefas_add(struct_buffer_tarefas* b, gcp_solution_t *s);
+void buffer_tarefas_add(struct_buffer_tarefas* b, gcp_solution_t s);
 gcp_solution_t buffer_tarefas_remove(struct_buffer_tarefas* b);
 
 void buffer_individuos_inicializa(int tamanho, struct_buffer_individuos* b);
-void buffer_individuos_add(struct_buffer_individuos* b, gcp_solution_t *s);
+void buffer_individuos_add(struct_buffer_individuos* b, gcp_solution_t s);
 void buffer_individuos_esvazia(struct_buffer_individuos* b);
 int buffer_individuos_is_cheio(struct_buffer_individuos* b);
 
