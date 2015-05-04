@@ -30,6 +30,20 @@ struct struct_buffer_individuos {
 typedef struct struct_buffer_tarefas struct_buffer_tarefas;
 typedef struct struct_buffer_individuos struct_buffer_individuos;
 
+int n_threads;
+int tam_buffer_tarefas;
+int tam_buffer_novos_individuos;
+struct_buffer_individuos buffer_novos_individuos;
+struct_buffer_tarefas buffer_tarefas;
+
+sem_t sem_mutex_tarefas;
+sem_t sem_is_cheio_tarefas;
+sem_t sem_is_vazio_tarefas;
+sem_t sem_mutex_individuos;
+sem_t sem_preenche_individuos;
+sem_t sem_atualiza_populacao;
+sem_t sem_mutex_populacao;
+
 
 void buffer_tarefas_inicializa(int tamanho, struct_buffer_tarefas* b);
 void buffer_tarefas_add(struct_buffer_tarefas* b, gcp_solution_t *s);
@@ -41,4 +55,3 @@ void buffer_individuos_esvazia(struct_buffer_individuos* b);
 int buffer_individuos_is_cheio(struct_buffer_individuos* b);
 
 #endif	/* PARALLEL_STRUCTURES_H */
-
