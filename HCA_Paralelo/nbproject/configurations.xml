@@ -6,6 +6,7 @@
                    projectFiles="true">
       <itemPath>color.h</itemPath>
       <itemPath>hca.h</itemPath>
+      <itemPath>parallel_structures.h</itemPath>
       <itemPath>tabucol.h</itemPath>
       <itemPath>util.h</itemPath>
     </logicalFolder>
@@ -18,6 +19,7 @@
                    projectFiles="true">
       <itemPath>color.c</itemPath>
       <itemPath>hca.c</itemPath>
+      <itemPath>parallel_structures.c</itemPath>
       <itemPath>tabucol.c</itemPath>
       <itemPath>util.c</itemPath>
     </logicalFolder>
@@ -50,6 +52,10 @@
       <item path="hca.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="hca.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="parallel_structures.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="parallel_structures.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="tabucol.c" ex="false" tool="0" flavor2="0">
       </item>
@@ -87,6 +93,10 @@
       <item path="hca.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="hca.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="parallel_structures.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="parallel_structures.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="tabucol.c" ex="false" tool="0" flavor2="0">
       </item>

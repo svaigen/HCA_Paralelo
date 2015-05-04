@@ -37,6 +37,7 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 OBJECTFILES= \
 	${OBJECTDIR}/color.o \
 	${OBJECTDIR}/hca.o \
+	${OBJECTDIR}/parallel_structures.o \
 	${OBJECTDIR}/tabucol.o \
 	${OBJECTDIR}/util.o
 
@@ -74,6 +75,11 @@ ${OBJECTDIR}/hca.o: hca.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -O2 -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/hca.o hca.c
+
+${OBJECTDIR}/parallel_structures.o: parallel_structures.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -O2 -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/parallel_structures.o parallel_structures.c
 
 ${OBJECTDIR}/tabucol.o: tabucol.c 
 	${MKDIR} -p ${OBJECTDIR}
