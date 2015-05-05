@@ -17,7 +17,6 @@
 #include "util.h"
 #include "hca.h"
 #include "tabucol.h"
-#include "parallel_structures.h"
 
 static char *namefilein;
 
@@ -359,33 +358,7 @@ gcp_solution_t* init_solution(void) {
 gcp_solution_t* find_solution() {
 
     gcp_solution_t* sol = NULL;
-
-    extern int tam_buffer_tarefas;
-    extern int tam_buffer_novos_individuos;
-    extern struct_buffer_individuos buffer_novos_individuos;
-    extern struct_buffer_tarefas buffer_tarefas;
-    extern int n_threads;
-
-    extern sem_t sem_mutex_tarefas;
-    extern sem_t sem_is_cheio_tarefas;
-    extern sem_t sem_is_vazio_tarefas;
-    extern sem_t sem_mutex_individuos;
-    extern sem_t sem_preenche_individuos;
-    extern sem_t sem_atualiza_populacao;
-    extern sem_t sem_mutex_populacao;
-
-    tam_buffer_tarefas = 2 * n_threads;
-    tam_buffer_novos_individuos = n_threads;
-    buffer_tarefas_inicializa(tam_buffer_tarefas, &buffer_tarefas);
-    buffer_individuos_inicializa(tam_buffer_novos_individuos, &buffer_novos_individuos);
-    sem_init(&sem_mutex_tarefas, 0, 1); //semaforo binario
-    sem_init(&sem_is_cheio_tarefas, 0, 0); //semaforo de 0 a tam_buffer_tarefas
-    sem_init(&sem_is_vazio_tarefas, 0, tam_buffer_tarefas); //semaforo de 0 a tam_buffer_tarefas
-    sem_init(&sem_preenche_individuos, 0, tam_buffer_novos_individuos); //semaforo de 0 a tam_buffer_novos_individuos
-    sem_init(&sem_atualiza_populacao, 0, 0); //semaforo binario
-    sem_init(&sem_mutex_individuos, 0, 1); //semaforo binario
-    sem_init(&sem_mutex_populacao, 0, 1); //semaforo binario
-
+    
     sol = hca();
 
     return sol;

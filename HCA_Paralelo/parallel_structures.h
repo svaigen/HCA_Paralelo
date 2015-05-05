@@ -17,14 +17,16 @@
 #define MAX_TAM_BUFFER_INDIVIDUOS 1024
 
 struct struct_buffer_tarefas{
-    gcp_solution_t buffer[MAX_TAM_BUFFER_TAREFAS];
+    gcp_solution_t* buffer[MAX_TAM_BUFFER_TAREFAS];
+    int buffer_parents[MAX_TAM_BUFFER_TAREFAS * 2];
     int pos_remocao;
     int pos_insercao;
     int fim_fisico;
 };
 
 struct struct_buffer_individuos {
-    gcp_solution_t buffer[MAX_TAM_BUFFER_INDIVIDUOS];
+    gcp_solution_t* buffer[MAX_TAM_BUFFER_INDIVIDUOS];
+    int buffer_parents[MAX_TAM_BUFFER_INDIVIDUOS * 2];
     int fim_logico;
     int pos_insercao;
 };
@@ -48,12 +50,13 @@ sem_t sem_mutex_populacao;
 
 
 void buffer_tarefas_inicializa(int tamanho, struct_buffer_tarefas* b);
-void buffer_tarefas_add(struct_buffer_tarefas* b, gcp_solution_t s);
-gcp_solution_t buffer_tarefas_remove(struct_buffer_tarefas* b);
-
+void buffer_tarefas_add(struct_buffer_tarefas* b, gcp_solution_t *s, int parent1, int parent2);
+gcp_solution_t* buffer_tarefas_remove(struct_buffer_tarefas* b);
+void buffer_tarefas_get_parents(struct_buffer_tarefas *b, int pos, int *parent1, int *parent2);
 void buffer_individuos_inicializa(int tamanho, struct_buffer_individuos* b);
-void buffer_individuos_add(struct_buffer_individuos* b, gcp_solution_t s);
+void buffer_individuos_add(struct_buffer_individuos* b, gcp_solution_t *s, int parent1, int parent2);
 void buffer_individuos_esvazia(struct_buffer_individuos* b);
+void buffer_individuos_get_parents(struct_buffer_individuos *b, int pos, int *parent1, int *parent2);
 int buffer_individuos_is_cheio(struct_buffer_individuos* b);
-
+void buffer_individuos_seleciona_melhor(struct_buffer_individuos* b, gcp_solution_t *solution, int *parent1, int *parent2);
 #endif	/* PARALLEL_STRUCTURES_H */

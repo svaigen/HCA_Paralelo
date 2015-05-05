@@ -19,10 +19,25 @@
 #include "util.h"
 #include "tabucol.h"
 #include "hca.h"
+#include "parallel_structures.h"
 
 static gcp_solution_t **population;
 static gcp_solution_t *best_solution;
-static gcp_solution_t *offspring;
+int cross, converg, cycle;
+
+extern int tam_buffer_tarefas;
+extern int tam_buffer_novos_individuos;
+extern struct_buffer_individuos buffer_novos_individuos;
+extern struct_buffer_tarefas buffer_tarefas;
+extern int n_threads;
+
+extern sem_t sem_mutex_tarefas;
+extern sem_t sem_is_cheio_tarefas;
+extern sem_t sem_is_vazio_tarefas;
+extern sem_t sem_mutex_individuos;
+extern sem_t sem_preenche_individuos;
+extern sem_t sem_atualiza_populacao;
+extern sem_t sem_mutex_populacao;
 
 void hca_printbanner(void) {
     fprintf(problem->fileout, "HCA\n");
@@ -193,7 +208,7 @@ static void choose_parents(int *p1, int *p2) {
     }
 }
 
-static void crossover(int p1, int p2) {
+static void crossover(int p1, int p2, gcp_solution_t *offspring) {
     int color, parent, max, i, j, c, v, otherparent, p;
     int class_colors[2][problem->max_colors][problem->nof_vertices + 1];
 
@@ -326,29 +341,65 @@ static int hca_terminate_conditions(gcp_solution_t *solution, int diversity) {
 
 }
 
-gcp_solution_t* hca(void) {
-
-    int cycle = 0;
-    int converg = 0;
-    int parent1, parent2, sp;
-    int cross = 0;
-
-    hca_info->diversity = 2 * HCA_DEFAULT_DIVERSITY;
-
-    best_solution = init_solution();
-    best_solution->nof_confl_edges = INT_MAX;
-    offspring = init_solution();
-    create_population();
-
-    while (!hca_terminate_conditions(best_solution, hca_info->diversity) &&
-            !terminate_conditions(best_solution, cycle, converg)) {
-
+void *produz(void* id) {
+    cross = 0;
+    while (TRUE) {
+        //printf("PRODUZ\n");
+        int parent1, parent2;
         choose_parents(&parent1, &parent2);
-        crossover(parent1, parent2);
+        gcp_solution_t *offspring = init_solution();
+        crossover(parent1, parent2, offspring);
+        sem_wait(&sem_is_vazio_tarefas);
+        sem_wait(&sem_mutex_tarefas);
+        buffer_tarefas_add(&buffer_tarefas, offspring, parent1, parent2);
+        sem_post(&sem_mutex_tarefas);
+        sem_post(&sem_is_cheio_tarefas);
         cross++;
-        tabucol(offspring, hca_info->cyc_local_search, tabucol_info->tl_style);
-        sp = substitute_worst(parent1, parent2, offspring);
+    }
+}
 
+void *consome(void* id) {
+    while (TRUE) {
+        //printf("CONSOME\n");
+        gcp_solution_t *offspring = init_solution();
+        int parent1, parent2;
+        sem_wait(&sem_is_cheio_tarefas);
+        sem_wait(&sem_mutex_tarefas);
+        buffer_tarefas_get_parents(&buffer_tarefas, buffer_tarefas.pos_remocao, &parent1, &parent2);
+        offspring = buffer_tarefas_remove(&buffer_tarefas);
+        sem_post(&sem_mutex_tarefas);
+        sem_post(&sem_is_vazio_tarefas);
+        //printf("SAI DO CONSOME\n");
+        tabucol(offspring, hca_info->cyc_local_search, tabucol_info->tl_style);
+        sem_wait(&sem_preenche_individuos);
+        sem_wait(&sem_mutex_individuos);
+        buffer_individuos_add(&buffer_novos_individuos, offspring, parent1, parent2);
+        if (buffer_individuos_is_cheio(&buffer_novos_individuos)) {
+            sem_post(&sem_atualiza_populacao);
+        }
+        sem_post(&sem_mutex_individuos);
+    }
+}
+
+void *atualiza_populacao(void* id) {
+    int parent1, parent2;
+    gcp_solution_t *offspring = init_solution();
+    while (cycle < 5) {
+        //printf("ATUALIZA\n");
+        sem_wait(&sem_atualiza_populacao);
+        buffer_individuos_seleciona_melhor(&buffer_novos_individuos, offspring, &parent1, &parent2);
+        sem_wait(&sem_mutex_individuos);
+        buffer_individuos_esvazia(&buffer_novos_individuos);
+        sem_post(&sem_mutex_individuos);
+        int i;
+        for (i = 0; i < buffer_novos_individuos.fim_logico; i++) {
+            sem_post(&sem_preenche_individuos);
+            int *n = malloc(sizeof (int));
+            sem_getvalue(&sem_preenche_individuos, n);
+        }
+        sem_wait(&sem_mutex_populacao);
+        int sp = substitute_worst(parent1, parent2, offspring);
+        sem_post(&sem_mutex_populacao);
         if (best_solution->nof_confl_edges > offspring->nof_confl_edges) {
             cpy_solution(offspring, best_solution);
             best_solution->time_to_best = current_usertime_secs();
@@ -362,12 +413,60 @@ gcp_solution_t* hca(void) {
             fprintf(problem->fileout, "HCA: cycle %d; best so far: %d; diversity: %d; parent substituted: %d\n",
                     cycle, best_solution->nof_confl_edges, hca_info->diversity, sp + 1);
         }
-
+        printf("cycle: %d\n",cycle);
         cycle++;
         converg++;
+        //printf("CHEGA NO FINAL DA ATT\n");
+    }
+}
 
+gcp_solution_t* hca(void) {
+
+    /*Inicializacao dos componentes de programacao paralela*/
+    tam_buffer_tarefas = 2 * n_threads;
+    tam_buffer_novos_individuos = n_threads;
+    buffer_tarefas_inicializa(tam_buffer_tarefas, &buffer_tarefas);
+    buffer_individuos_inicializa(tam_buffer_novos_individuos, &buffer_novos_individuos);
+    sem_init(&sem_mutex_tarefas, 0, 1); //semaforo binario
+    sem_init(&sem_is_cheio_tarefas, 0, 0); //semaforo de 0 a tam_buffer_tarefas
+    sem_init(&sem_is_vazio_tarefas, 0, tam_buffer_tarefas); //semaforo de 0 a tam_buffer_tarefas
+    sem_init(&sem_preenche_individuos, 0, tam_buffer_novos_individuos); //semaforo de 0 a tam_buffer_novos_individuos
+    sem_init(&sem_atualiza_populacao, 0, 0); //semaforo binario
+    sem_init(&sem_mutex_individuos, 0, 1); //semaforo binario
+    sem_init(&sem_mutex_populacao, 0, 1); //semaforo binario
+    pthread_t threads[n_threads + 2];
+
+    hca_info->diversity = 2 * HCA_DEFAULT_DIVERSITY;
+
+    best_solution = init_solution();
+    best_solution->nof_confl_edges = INT_MAX;
+    create_population();
+
+    //while (!hca_terminate_conditions(best_solution, hca_info->diversity) &&
+    //        !terminate_conditions(best_solution, cycle, converg)) {
+
+    /*Thread 1 --> Produz*/
+    int id = 1;
+    pthread_create(&threads[0], NULL, produz, &id);
+
+    /*Thread 2 --> Consumidor*/
+    for (id = 1; id <= n_threads; id++) {
+        int *n = malloc(sizeof (int));
+        *n = id;
+        pthread_create(&threads[id], NULL, consome, n);
     }
 
+    /*Thread 3 --> Atualizar*/
+    pthread_create(&threads[n_threads + 1], NULL, atualiza_populacao, &id);
+
+    //}
+
+    pthread_join(threads[n_threads + 1], NULL);
+    int i;
+    for (i = 0; i <= n_threads; i++) {
+        pthread_cancel(threads[i]);
+    }
+    /*Retorno do codigo sequencial*/
     best_solution->spent_time = current_usertime_secs();
     best_solution->total_cycles = cycle;
     hca_info->nof_cross = cross;
