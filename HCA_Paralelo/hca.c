@@ -215,7 +215,9 @@ static void crossover(int p1, int p2, gcp_solution_t *offspring) {
     offspring->nof_colors = problem->max_colors;
     for (i = 0; i < problem->nof_vertices; i++) {
         offspring->color_of[i] = -1;
+        //printf("i: %d ",i);
         for (c = 0; c < problem->max_colors; c++) {
+            //printf("c: %d\n",c);
             class_colors[0][c][i] = population[p1]->class_color[c][i];
             class_colors[1][c][i] = population[p2]->class_color[c][i];
             offspring->class_color[c][i] = -1;
@@ -348,6 +350,7 @@ void *produz(void* id) {
         int parent1, parent2;
         choose_parents(&parent1, &parent2);
         gcp_solution_t *offspring = init_solution();
+        printf("init offsp: %x\n",offspring);
         crossover(parent1, parent2, offspring);
         sem_wait(&sem_is_vazio_tarefas);
         sem_wait(&sem_mutex_tarefas);
@@ -384,7 +387,7 @@ void *consome(void* id) {
 void *atualiza_populacao(void* id) {
     int parent1, parent2;
     gcp_solution_t *offspring = init_solution();
-    while (cycle < 5) {
+    while (cycle < 10) {
         //printf("ATUALIZA\n");
         sem_wait(&sem_atualiza_populacao);
         buffer_individuos_seleciona_melhor(&buffer_novos_individuos, offspring, &parent1, &parent2);

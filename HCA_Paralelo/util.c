@@ -9,22 +9,18 @@
 
 
 #include <stdlib.h>
+#include <malloc.h>
 #include "util.h"
 #include <sys/resource.h>
-
-
-
 
 
 void* malloc_(size_t size) {/*{{{*/
     void *p;
 	p = malloc(size);
-
     if (!p) {
         perror("malloc");
         abort();
     }
-
     return p;
 }/*}}}*/
 
