@@ -429,15 +429,17 @@ void tabucol(gcp_solution_t *solution, int max_cycles, int type_of_tl) {
         }
     }
     
-    free(conflicts);
-    free(tabu_status);
-    free(nodes_in_conflict);
-    free(conf_position);
+    
 
     solution->nof_confl_edges = total_conflicts;
     solution->nof_confl_vertices = nodes_in_conflict[0];
     solution->spent_time = current_usertime_secs();
     solution->total_cycles = total_it;
+    
+    free(conflicts);
+    free(tabu_status);
+    free(nodes_in_conflict);
+    free(conf_position);
 
 }
 
