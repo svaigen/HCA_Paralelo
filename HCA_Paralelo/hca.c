@@ -350,7 +350,7 @@ void *produz(void* id) {
         int parent1, parent2;
         choose_parents(&parent1, &parent2);
         gcp_solution_t *offspring = init_solution();
-        printf("init offsp: %x\n",offspring);
+        //printf("init offsp: %x\n",offspring);
         crossover(parent1, parent2, offspring);
         sem_wait(&sem_is_vazio_tarefas);
         sem_wait(&sem_mutex_tarefas);
