@@ -72,7 +72,7 @@ static int test_solution(gcp_solution_t* sol) {
         for (j = 1; j <= sol->class_color[i][0]; j++) {
             v = sol->class_color[i][j];
             if (i != sol->color_of[v]) {
-                printf(" ERROR!! %d está na classe %d, mas cor de %d = %d \n", v + 1, i, v + 1, sol->color_of[v]);
+                //printf(" ERROR!! %d está na classe %d, mas cor de %d = %d \n", v + 1, i, v + 1, sol->color_of[v]);
                 return 0;
             }
         }
@@ -431,11 +431,11 @@ void *atualiza_populacao(void* id) {
         cycle++;
         converg++;
     } while (!hca_terminate_conditions(best_solution, hca_info->diversity) && !terminate_conditions(best_solution, cycle, converg));
-    printf("atingiu criterio parada atualizapop\n");
+    //printf("atingiu criterio parada atualizapop\n");
     int i;
     //quando é atingido um critério de parada, as threads são todas "mortas"
     for (i = 0; i < (n_threads + 1); i++) {
-        printf("%d\n", i);
+        //printf("%d\n", i);
         pthread_cancel(threads[i]);
     }
 }
