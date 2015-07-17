@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <limits.h>
+#include <signal.h>
 #include "color.h"
 #include "util.h"
 #include "tabucol.h"
@@ -38,6 +39,7 @@ extern sem_t sem_mutex_individuos;
 extern sem_t sem_preenche_individuos;
 extern sem_t sem_atualiza_populacao;
 extern sem_t sem_mutex_populacao;
+pthread_t *threads;
 
 void hca_printbanner(void) {
     fprintf(problem->fileout, "HCA\n");
@@ -387,8 +389,8 @@ void *consome(void* id) {
 void *atualiza_populacao(void* id) {
     int parent1, parent2;
     gcp_solution_t *offspring = init_solution();
-    while (cycle < 10) {
-        //printf("ATUALIZA\n");
+    do {
+        //printf("ciclo %d\n",cycle);
         sem_wait(&sem_atualiza_populacao);
         buffer_individuos_seleciona_melhor(&buffer_novos_individuos, offspring, &parent1, &parent2);
         sem_wait(&sem_mutex_individuos);
@@ -416,10 +418,16 @@ void *atualiza_populacao(void* id) {
             fprintf(problem->fileout, "HCA: cycle %d; best so far: %d; diversity: %d; parent substituted: %d\n",
                     cycle, best_solution->nof_confl_edges, hca_info->diversity, sp + 1);
         }
-        printf("cycle: %d\n",cycle);
+        //printf("cycle: %d\n", cycle);
         cycle++;
         converg++;
-        //printf("CHEGA NO FINAL DA ATT\n");
+    } while (!hca_terminate_conditions(best_solution, hca_info->diversity) && !terminate_conditions(best_solution, cycle, converg));
+    printf("atingiu criterio parada atualizapop\n");
+    int i;
+    //quando é atingido um critério de parada, as threads são todas "mortas"
+    for (i = 0; i < (n_threads + 1); i++) {
+        printf("%d\n",i);
+        pthread_cancel(threads[i]);
     }
 }
 
@@ -437,16 +445,13 @@ gcp_solution_t* hca(void) {
     sem_init(&sem_atualiza_populacao, 0, 0); //semaforo binario
     sem_init(&sem_mutex_individuos, 0, 1); //semaforo binario
     sem_init(&sem_mutex_populacao, 0, 1); //semaforo binario
-    pthread_t threads[n_threads + 2];
+    threads = malloc((n_threads + 2) * sizeof (pthread_t));
 
     hca_info->diversity = 2 * HCA_DEFAULT_DIVERSITY;
 
     best_solution = init_solution();
     best_solution->nof_confl_edges = INT_MAX;
     create_population();
-
-    //while (!hca_terminate_conditions(best_solution, hca_info->diversity) &&
-    //        !terminate_conditions(best_solution, cycle, converg)) {
 
     /*Thread 1 --> Produz*/
     int id = 1;
@@ -459,16 +464,17 @@ gcp_solution_t* hca(void) {
         pthread_create(&threads[id], NULL, consome, n);
     }
 
-    /*Thread 3 --> Atualizar*/
+    /*Thread 3 --> Atualizar Populacão*/
     pthread_create(&threads[n_threads + 1], NULL, atualiza_populacao, &id);
 
-    //}
-
-    pthread_join(threads[n_threads + 1], NULL);
+    //espera o criterio de parada do atualizaPopulacao
     int i;
-    for (i = 0; i <= n_threads; i++) {
-        pthread_cancel(threads[i]);
+    for (i = 0; i < (n_threads + 2); i++) {
+        pthread_join(threads[i], NULL);
     }
+
+    printf("chegou aqui\n");
+
     /*Retorno do codigo sequencial*/
     best_solution->spent_time = current_usertime_secs();
     best_solution->total_cycles = cycle;

@@ -31,7 +31,7 @@
 #define get_flag(flag, pos) flag & pos
 
 #define DEFAULT_TIME	3600
-#define DEFAULT_CONV	500
+#define DEFAULT_CONV	2000
 
 /* Define kind of stop criterion (when the run is finished) */
 #define STOP_CYCLES	1

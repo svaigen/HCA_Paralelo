@@ -226,11 +226,6 @@ void tabucol(gcp_solution_t *solution, int max_cycles, int type_of_tl) {
     /* Index of nodes in array nodes_in_conflicts */
     int *conf_position = NULL;
 
-    if (max_cycles >= 0) {
-        tabucol_info = malloc_(sizeof (tabucol_t));
-        tabucol_info->tl_style = type_of_tl;
-    }
-
     /* declaring variables */
     int i, c;
     int pairs[][3] = {
@@ -356,7 +351,7 @@ void tabucol(gcp_solution_t *solution, int max_cycles, int type_of_tl) {
         }
 
         /* Calculating tabu_tenure: */
-        if (tabucol_info->tl_style == TABUCOL_REACTIVE) {
+        if (type_of_tl == TABUCOL_REACTIVE) {
             max_min = 0;
             /* Update the min and max objective function value */
             if (total_conflicts > max_solution_value)
@@ -402,7 +397,7 @@ void tabucol(gcp_solution_t *solution, int max_cycles, int type_of_tl) {
         /* Test if there is a new globally best solution */
         if (total_conflicts <= best_solution_value) {
             best_solution_value = total_conflicts;
-            solution->cycles_to_best = total_it;
+            //solution->cycles_to_best = total_it;
             solution->time_to_best = current_usertime_secs();
 
             /* If all nodes are colored, stop iterating */
@@ -416,17 +411,7 @@ void tabucol(gcp_solution_t *solution, int max_cycles, int type_of_tl) {
             iteration = 0;
         }
 
-        /* The local search algorithms can be used by another algorithm (meaning
-         * that the stop criterion is a number of iterations without improvement)
-         * or they can be used by themselves (meaning that the stop criterion 
-         * must be accordingly to the general function) */
-        if (max_cycles < 0) {
-            if (terminate_conditions(solution, total_it, iteration)) {
-                break;
-            }
-        } else {
-            if (total_it >= max_cycles) break;
-        }
+        if(total_it >= max_cycles) break;
     }
     
     

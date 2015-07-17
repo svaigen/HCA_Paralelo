@@ -24,7 +24,6 @@ void show_help(char *nameprog) {
     fprintf(problem->fileout, "Usage: %s [options] <file>\n", nameprog);
 
     fprintf(problem->fileout, "  [-c, --cycles    ] <value>\tDefine maximum number of cycles as <value>. Default: %d.\n", HCA_DEFAULT_CYC);
-    fprintf(problem->fileout, "  [-t, --maxtime   ] <value>\tDefine maximum time of execution as <value>. Default: %d.\n", DEFAULT_TIME);
     fprintf(problem->fileout, "  [-g, --converg   ] <value>\tDefine maximum number of cycles without improvement as <value>. Default: %d.\n", DEFAULT_CONV);
 
     fprintf(problem->fileout, "  [-p, --population] <value>\tDescription: Define size of population as <value>. Default: %d.\n", HCA_DEFAULT_POP);
@@ -54,7 +53,6 @@ void parseargs(int argc, char *argv[]) {
     struct option longopts[] = {
 
         {"maxcycles", 1, NULL, 'c'},
-        {"maxtime", 1, NULL, 't'},
         {"converge", 1, NULL, 'g'},
         {"population", 1, NULL, 'p'},
         {"ls_cyc", 1, NULL, 'l'},
@@ -68,15 +66,11 @@ void parseargs(int argc, char *argv[]) {
         {"help", 0, NULL, 'h'},
     };
 
-    while ((op = getopt_long(argc, argv, "c:t:g:p:l:k:n:rs:o:vh", longopts, NULL)) != -1) {
+    while ((op = getopt_long(argc, argv, "c:g:p:l:k:n:rs:o:vh", longopts, NULL)) != -1) {
         switch (op) {
             case 'c':
                 problem->max_cycles = atoi(optarg);
                 set_flag(problem->flags, FLAG_CYCLE);
-                break;
-            case 't':
-                problem->max_time = atof(optarg);
-                set_flag(problem->flags, FLAG_TIME);
                 break;
             case 'g':
                 problem->max_cyc_converg = atoi(optarg);
@@ -142,7 +136,6 @@ void initialization(void) {
     int i, j, vi, vj;
     char f, t[50];
 
-    problem->max_time = get_flag(problem->flags, FLAG_TIME) ? problem->max_time : DEFAULT_TIME;
     problem->max_cycles = get_flag(problem->flags, FLAG_CYCLE) ? problem->max_cycles : HCA_DEFAULT_CYC;
     problem->max_cyc_converg = get_flag(problem->flags, FLAG_CONV) ? problem->max_cyc_converg : DEFAULT_CONV;
 
@@ -174,6 +167,7 @@ void initialization(void) {
 
     j = fscanf(in, "%s %d %d\n", t, &problem->nof_vertices, &problem->nof_edges);
     problem->degree = malloc_(sizeof (int) * problem->nof_vertices);
+    hca_info->sizeof_population = (hca_info->sizeof_population == -1) ? problem->nof_vertices*0.3 : hca_info->sizeof_population;    
     if (get_flag(problem->flags, FLAG_ADJ_MATRIX)) {
         problem->adj_matrix = malloc_(sizeof (int*) * problem->nof_vertices);
     }
@@ -241,7 +235,6 @@ void printbanner(void) {
     fprintf(problem->fileout, "-------------------------------------------------\n");
     tabucol_printbanner();
     fprintf(problem->fileout, "-------------------------------------------------\n");
-    fprintf(problem->fileout, "Max time......................: %lf\n", problem->max_time);
     fprintf(problem->fileout, "Max cycles....................: %d\n", problem->max_cycles);
     fprintf(problem->fileout, "Max cycles without improvement: %d\n", problem->max_cyc_converg);
     if (problem->flags & FLAG_VERBOSE)
@@ -374,10 +367,6 @@ int terminate_conditions(gcp_solution_t *solution, int cycle, int converg) {
     } else if (get_flag(problem->flags, FLAG_CYCLE) &&
             cycle >= problem->max_cycles) {
         solution->stop_criterion = STOP_CYCLES;
-        return TRUE;
-    } else if (get_flag(problem->flags, FLAG_TIME) &&
-            current_usertime_secs() >= problem->max_time) {
-        solution->stop_criterion = STOP_TIME;
         return TRUE;
     }
     return FALSE;
