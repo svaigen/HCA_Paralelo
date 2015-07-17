@@ -66,16 +66,18 @@ void hca_show_solution(void) {
     fprintf(problem->fileout, "Diversity in the final population: %d\n", hca_info->diversity);
 }
 
-static void test_solution(gcp_solution_t* sol) {
+static int test_solution(gcp_solution_t* sol) {
     int i, j, v;
     for (i = 0; i < problem->max_colors; i++) {
         for (j = 1; j <= sol->class_color[i][0]; j++) {
             v = sol->class_color[i][j];
             if (i != sol->color_of[v]) {
                 printf(" ERROR!! %d está na classe %d, mas cor de %d = %d \n", v + 1, i, v + 1, sol->color_of[v]);
+                return 0;
             }
         }
     }
+    return 1;
 }
 
 static gcp_solution_t* create_indiv(void) {
@@ -210,7 +212,7 @@ static void choose_parents(int *p1, int *p2) {
     }
 }
 
-static void crossover(int p1, int p2, gcp_solution_t *offspring) {
+static int crossover(int p1, int p2, gcp_solution_t *offspring) {
     int color, parent, max, i, j, c, v, otherparent, p;
     int class_colors[2][problem->max_colors][problem->nof_vertices + 1];
 
@@ -285,9 +287,10 @@ static void crossover(int p1, int p2, gcp_solution_t *offspring) {
         }
     }
 
-    test_solution(population[p1]);
-    test_solution(population[p2]);
-    test_solution(offspring);
+    if (test_solution(population[p1]) && test_solution(population[p2]) && test_solution(offspring)) {
+        return 1;
+    }
+    return 0;
 
 }
 
@@ -350,10 +353,15 @@ void *produz(void* id) {
     while (TRUE) {
         //printf("PRODUZ\n");
         int parent1, parent2;
-        choose_parents(&parent1, &parent2);
-        gcp_solution_t *offspring = init_solution();
-        //printf("init offsp: %x\n",offspring);
-        crossover(parent1, parent2, offspring);
+        int sucesso = 0;
+        gcp_solution_t *offspring;
+        do {
+            choose_parents(&parent1, &parent2);
+            offspring = init_solution();
+            sucesso = crossover(parent1, parent2, offspring);
+            //printf("init offsp: %x\n",offspring);            
+        } while(!sucesso);
+        
         sem_wait(&sem_is_vazio_tarefas);
         sem_wait(&sem_mutex_tarefas);
         buffer_tarefas_add(&buffer_tarefas, offspring, parent1, parent2);
@@ -405,6 +413,7 @@ void *atualiza_populacao(void* id) {
         sem_wait(&sem_mutex_populacao);
         int sp = substitute_worst(parent1, parent2, offspring);
         sem_post(&sem_mutex_populacao);
+        offspring->nof_confl_edges = test_map(offspring);
         if (best_solution->nof_confl_edges > offspring->nof_confl_edges) {
             cpy_solution(offspring, best_solution);
             best_solution->time_to_best = current_usertime_secs();
@@ -426,7 +435,7 @@ void *atualiza_populacao(void* id) {
     int i;
     //quando é atingido um critério de parada, as threads são todas "mortas"
     for (i = 0; i < (n_threads + 1); i++) {
-        printf("%d\n",i);
+        printf("%d\n", i);
         pthread_cancel(threads[i]);
     }
 }

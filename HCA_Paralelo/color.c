@@ -167,7 +167,7 @@ void initialization(void) {
 
     j = fscanf(in, "%s %d %d\n", t, &problem->nof_vertices, &problem->nof_edges);
     problem->degree = malloc_(sizeof (int) * problem->nof_vertices);
-    hca_info->sizeof_population = (hca_info->sizeof_population == -1) ? problem->nof_vertices*0.3 : hca_info->sizeof_population;    
+    hca_info->sizeof_population = (hca_info->sizeof_population == -1) ? problem->nof_vertices * 0.3 : hca_info->sizeof_population;
     if (get_flag(problem->flags, FLAG_ADJ_MATRIX)) {
         problem->adj_matrix = malloc_(sizeof (int*) * problem->nof_vertices);
     }
@@ -243,10 +243,10 @@ void printbanner(void) {
 
 }
 
-void test_map(gcp_solution_t *solution) {
+int test_map(gcp_solution_t *solution) {
     int i, j, n;
     int confs = 0;
-    printf("\n");
+    //printf("\n");
     for (i = 0; i < problem->nof_vertices; i++) {
         //printf("color of %d: %d\n", i+1, solution->color_of[i]);
         if (get_flag(problem->flags, FLAG_ADJ_MATRIX)) {
@@ -270,7 +270,8 @@ void test_map(gcp_solution_t *solution) {
     if (confs != solution->nof_confl_edges) {
         printf("ERROR!! Confl edges = %d; Calculated = %d\n", confs, solution->nof_confl_edges);
     }
-    printf("\n");
+    //printf("\n");
+    return confs;
 }
 
 void cpy_solution(gcp_solution_t *src, gcp_solution_t *dst) {
@@ -351,7 +352,7 @@ gcp_solution_t* init_solution(void) {
 gcp_solution_t* find_solution() {
 
     gcp_solution_t* sol = NULL;
-    
+
     sol = hca();
 
     return sol;
