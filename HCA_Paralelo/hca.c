@@ -271,7 +271,6 @@ static int crossover(int p1, int p2, gcp_solution_t *offspring) {
                 }
             }
         }
-
         /* Remove all vertices in C_color of <parent> */
         class_colors[parent][max][0] = 0;
 
@@ -291,15 +290,13 @@ static int crossover(int p1, int p2, gcp_solution_t *offspring) {
         return 1;
     }
     return 0;
-
 }
 
 static int substitute_worst(int p1, int p2, gcp_solution_t* offspring) {/*{{{*/
     if (population[p1]->nof_confl_edges > population[p2]->nof_confl_edges) {
         cpy_solution(offspring, population[p1]);
         return p1;
-    }
-
+    }   
     cpy_solution(offspring, population[p2]);
     return p2;
 }
@@ -360,8 +357,8 @@ void *produz(void* id) {
             offspring = init_solution();
             sucesso = crossover(parent1, parent2, offspring);
             //printf("init offsp: %x\n",offspring);            
-        } while(!sucesso);
-        
+        } while (!sucesso);
+
         sem_wait(&sem_is_vazio_tarefas);
         sem_wait(&sem_mutex_tarefas);
         buffer_tarefas_add(&buffer_tarefas, offspring, parent1, parent2);
@@ -398,17 +395,16 @@ void *atualiza_populacao(void* id) {
     int parent1, parent2;
     gcp_solution_t *offspring = init_solution();
     do {
-        //printf("ciclo %d\n",cycle);
         sem_wait(&sem_atualiza_populacao);
-        buffer_individuos_seleciona_melhor(&buffer_novos_individuos, offspring, &parent1, &parent2);
         sem_wait(&sem_mutex_individuos);
+        buffer_individuos_seleciona_melhor(&buffer_novos_individuos, offspring, &parent1, &parent2);
         buffer_individuos_esvazia(&buffer_novos_individuos);
         sem_post(&sem_mutex_individuos);
         int i;
         for (i = 0; i < buffer_novos_individuos.fim_logico; i++) {
             sem_post(&sem_preenche_individuos);
-            int *n = malloc(sizeof (int));
-            sem_getvalue(&sem_preenche_individuos, n);
+            //int *n = malloc(sizeof (int));
+            //sem_getvalue(&sem_preenche_individuos, n);
         }
         sem_wait(&sem_mutex_populacao);
         int sp = substitute_worst(parent1, parent2, offspring);
@@ -427,15 +423,12 @@ void *atualiza_populacao(void* id) {
             fprintf(problem->fileout, "HCA: cycle %d; best so far: %d; diversity: %d; parent substituted: %d\n",
                     cycle, best_solution->nof_confl_edges, hca_info->diversity, sp + 1);
         }
-        //printf("cycle: %d\n", cycle);
         cycle++;
         converg++;
     } while (!hca_terminate_conditions(best_solution, hca_info->diversity) && !terminate_conditions(best_solution, cycle, converg));
-    //printf("atingiu criterio parada atualizapop\n");
     int i;
     //quando é atingido um critério de parada, as threads são todas "mortas"
     for (i = 0; i < (n_threads + 1); i++) {
-        //printf("%d\n", i);
         pthread_cancel(threads[i]);
     }
 }
@@ -482,8 +475,6 @@ gcp_solution_t* hca(void) {
         pthread_join(threads[i], NULL);
     }
 
-    printf("chegou aqui\n");
-
     /*Retorno do codigo sequencial*/
     best_solution->spent_time = current_usertime_secs();
     best_solution->total_cycles = cycle;
@@ -492,5 +483,3 @@ gcp_solution_t* hca(void) {
     return best_solution;
 
 }
-
-
