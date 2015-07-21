@@ -64,7 +64,7 @@ void tabucol_initialization(void) {
 
 }
 
-void initialize_arrays(gcp_solution_t *solution, int ***conflicts, int ***tabu_status, int **nodes_in_conflict, int **conf_position) {
+static void initialize_arrays(gcp_solution_t *solution, int ***conflicts, int ***tabu_status, int **nodes_in_conflict, int **conf_position) {
     int i, j, n;
 
     if (*nodes_in_conflict == NULL) {
@@ -104,13 +104,26 @@ void initialize_arrays(gcp_solution_t *solution, int ***conflicts, int ***tabu_s
         }
     }
 
-//    printf("nic %x \n", *nodes_in_conflict);
-//    printf("conf %x \n", *conflicts);
-//    printf("ts %x \n", *tabu_status);
-//    printf("cp %x \n", *conf_position);    
+    //    printf("nic %x \n", *nodes_in_conflict);
+    //    printf("conf %x \n", *conflicts);
+    //    printf("ts %x \n", *tabu_status);
+    //    printf("cp %x \n", *conf_position);    
 }
 
-void neighbor_solution(int best_node, int best_color,
+static void free_arrays(int ***conflicts, int ***tabu_status, int **nodes_in_conflict, int **conf_position) {
+    int i, j;
+    for (i = 0; i <= problem->max_colors; i++) {
+        free((*conflicts)[i]);
+        free((*tabu_status)[i]);
+    }
+    free(*nodes_in_conflict);
+    free(*conf_position);
+    free(*conflicts);
+    free(*tabu_status);
+
+}
+
+static void neighbor_solution(int best_node, int best_color,
         gcp_solution_t *solution, int total_it, int t_tenure,
         int **conflicts, int **tabu_status, int *nodes_in_conflict, int *conf_position) {
 
@@ -265,11 +278,11 @@ void tabucol(gcp_solution_t *solution, int max_cycles, int type_of_tl) {
 
     initialize_arrays(solution, &conflicts, &tabu_status, &nodes_in_conflict, &conf_position);
 
-//    printf("\nnic %x \n", nodes_in_conflict);
-//    printf("conf %x \n", conflicts);
-//    printf("ts %x \n", tabu_status);
-//    printf("cp %x \n", conf_position);    
-//    getchar();
+    //    printf("\nnic %x \n", nodes_in_conflict);
+    //    printf("conf %x \n", conflicts);
+    //    printf("ts %x \n", tabu_status);
+    //    printf("cp %x \n", conf_position);    
+    //    getchar();
     /* Count the number of conflicts and set up the list nodes_in_conflict
      * with the associated list conf_position */
     nodes_in_conflict[0] = 0;
@@ -411,20 +424,22 @@ void tabucol(gcp_solution_t *solution, int max_cycles, int type_of_tl) {
             iteration = 0;
         }
 
-        if(total_it >= max_cycles) break;
+        if (total_it >= max_cycles) break;
     }
-    
-    
+
+
 
     solution->nof_confl_edges = total_conflicts;
     solution->nof_confl_vertices = nodes_in_conflict[0];
     solution->spent_time = current_usertime_secs();
     solution->total_cycles = total_it;
-    
-    free(conflicts);
-    free(tabu_status);
-    free(nodes_in_conflict);
-    free(conf_position);
+
+    free_arrays(&conflicts, &tabu_status, &nodes_in_conflict, &conf_position);
+
+    //free(conflicts);
+    //free(tabu_status);
+    //free(nodes_in_conflict);
+    //free(conf_position);
 
 }
 

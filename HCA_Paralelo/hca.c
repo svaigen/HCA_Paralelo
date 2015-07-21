@@ -16,6 +16,7 @@
 #include <math.h>
 #include <limits.h>
 #include <signal.h>
+#include <malloc.h>
 #include "color.h"
 #include "util.h"
 #include "tabucol.h"
@@ -26,11 +27,12 @@ static gcp_solution_t **population;
 static gcp_solution_t *best_solution;
 int cross, converg, cycle;
 
-extern int tam_buffer_tarefas;
-extern int tam_buffer_novos_individuos;
-extern struct_buffer_individuos buffer_novos_individuos;
-extern struct_buffer_tarefas buffer_tarefas;
-extern int n_threads;
+int tam_buffer_tarefas;
+int tam_buffer_individuos_melhorados;
+struct_buffer_individuos *buffer_individuos_melhorados;
+struct_buffer_tarefas buffer_tarefas;
+int n_threads;
+struct_individuos_melhorados *individuos_melhorados;
 
 extern sem_t sem_mutex_tarefas;
 extern sem_t sem_is_cheio_tarefas;
@@ -285,7 +287,6 @@ static int crossover(int p1, int p2, gcp_solution_t *offspring) {
             offspring->class_color[c][offspring->class_color[c][0]] = i;
         }
     }
-
     if (test_solution(population[p1]) && test_solution(population[p2]) && test_solution(offspring)) {
         return 1;
     }
@@ -296,7 +297,7 @@ static int substitute_worst(int p1, int p2, gcp_solution_t* offspring) {/*{{{*/
     if (population[p1]->nof_confl_edges > population[p2]->nof_confl_edges) {
         cpy_solution(offspring, population[p1]);
         return p1;
-    }   
+    }
     cpy_solution(offspring, population[p2]);
     return p2;
 }
@@ -345,67 +346,83 @@ static int hca_terminate_conditions(gcp_solution_t *solution, int diversity) {
 
 }
 
+void cpy_best_melhorado(struct_individuos_melhorados* src, struct_individuos_melhorados *dst) {
+    cpy_solution(src->individuo, dst->individuo);
+    dst->parent1 = src->parent1;
+    dst->parent2 = src->parent2;
+}
+
 void *produz(void* id) {
     cross = 0;
     while (TRUE) {
-        //printf("PRODUZ\n");
         int parent1, parent2;
         int sucesso = 0;
         gcp_solution_t *offspring;
         do {
             choose_parents(&parent1, &parent2);
             offspring = init_solution();
-            sucesso = crossover(parent1, parent2, offspring);
-            //printf("init offsp: %x\n",offspring);            
+            sucesso = crossover(parent1, parent2, offspring);            
         } while (!sucesso);
-
         sem_wait(&sem_is_vazio_tarefas);
         sem_wait(&sem_mutex_tarefas);
         buffer_tarefas_add(&buffer_tarefas, offspring, parent1, parent2);
         sem_post(&sem_mutex_tarefas);
         sem_post(&sem_is_cheio_tarefas);
         cross++;
+        free(offspring->class_color);
+        free(offspring->color_of);
+        free(offspring);
     }
 }
 
 void *consome(void* id) {
+    int id_thread = (int) id;
     while (TRUE) {
-        //printf("CONSOME\n");
         gcp_solution_t *offspring = init_solution();
         int parent1, parent2;
         sem_wait(&sem_is_cheio_tarefas);
         sem_wait(&sem_mutex_tarefas);
         buffer_tarefas_get_parents(&buffer_tarefas, buffer_tarefas.pos_remocao, &parent1, &parent2);
-        offspring = buffer_tarefas_remove(&buffer_tarefas);
+        buffer_tarefas_remove(&buffer_tarefas,offspring);
         sem_post(&sem_mutex_tarefas);
         sem_post(&sem_is_vazio_tarefas);
-        //printf("SAI DO CONSOME\n");
         tabucol(offspring, hca_info->cyc_local_search, tabucol_info->tl_style);
-        sem_wait(&sem_preenche_individuos);
-        sem_wait(&sem_mutex_individuos);
-        buffer_individuos_add(&buffer_novos_individuos, offspring, parent1, parent2);
-        if (buffer_individuos_is_cheio(&buffer_novos_individuos)) {
+        buffer_individuos_add(&buffer_individuos_melhorados[id_thread - 1], offspring, parent1, parent2);
+        if (buffer_individuos_is_cheio(&buffer_individuos_melhorados[id_thread - 1])) {
+            struct_individuos_melhorados *best = malloc(sizeof (struct_individuos_melhorados));
+            best->individuo = init_solution();
+            buffer_individuos_seleciona_melhor(&buffer_individuos_melhorados[id_thread - 1], best);
+            cpy_best_melhorado(best, &individuos_melhorados[id_thread - 1]);
+            buffer_individuos_esvazia(&buffer_individuos_melhorados[id_thread - 1]);
             sem_post(&sem_atualiza_populacao);
+            free(best->individuo->class_color);
+            free(best->individuo->color_of);
+            free(best->individuo);
+            free(best);
         }
-        sem_post(&sem_mutex_individuos);
+        free(offspring->class_color);
+        free(offspring->color_of);
+        free(offspring);
     }
 }
 
 void *atualiza_populacao(void* id) {
-    int parent1, parent2;
-    gcp_solution_t *offspring = init_solution();
+    int parent1 = -1;
+    int parent2 = -1;
     do {
+        gcp_solution_t* offspring = init_solution();
         sem_wait(&sem_atualiza_populacao);
-        sem_wait(&sem_mutex_individuos);
-        buffer_individuos_seleciona_melhor(&buffer_novos_individuos, offspring, &parent1, &parent2);
-        buffer_individuos_esvazia(&buffer_novos_individuos);
-        sem_post(&sem_mutex_individuos);
         int i;
-        for (i = 0; i < buffer_novos_individuos.fim_logico; i++) {
-            sem_post(&sem_preenche_individuos);
-            //int *n = malloc(sizeof (int));
-            //sem_getvalue(&sem_preenche_individuos, n);
+        for (i = 0; i < n_threads; i++) {
+            if (individuos_melhorados[i].parent1 != -1) {
+                cpy_solution(individuos_melhorados[i].individuo, offspring);
+                parent1 = individuos_melhorados[i].parent1;
+                parent2 = individuos_melhorados[i].parent2;
+                individuos_melhorados->parent1 = -1; //anula a posicao do individuo melhorado
+                break;
+            }
         }
+
         sem_wait(&sem_mutex_populacao);
         int sp = substitute_worst(parent1, parent2, offspring);
         sem_post(&sem_mutex_populacao);
@@ -423,8 +440,11 @@ void *atualiza_populacao(void* id) {
             fprintf(problem->fileout, "HCA: cycle %d; best so far: %d; diversity: %d; parent substituted: %d\n",
                     cycle, best_solution->nof_confl_edges, hca_info->diversity, sp + 1);
         }
-        cycle++;
-        converg++;
+        cycle += n_threads;
+        converg+= n_threads;
+        free(offspring->class_color);
+        free(offspring->color_of);
+        free(offspring);
     } while (!hca_terminate_conditions(best_solution, hca_info->diversity) && !terminate_conditions(best_solution, cycle, converg));
     int i;
     //quando é atingido um critério de parada, as threads são todas "mortas"
@@ -434,18 +454,25 @@ void *atualiza_populacao(void* id) {
 }
 
 gcp_solution_t* hca(void) {
-
     /*Inicializacao dos componentes de programacao paralela*/
     tam_buffer_tarefas = 2 * n_threads;
-    tam_buffer_novos_individuos = n_threads;
+    tam_buffer_individuos_melhorados = n_threads;
     buffer_tarefas_inicializa(tam_buffer_tarefas, &buffer_tarefas);
-    buffer_individuos_inicializa(tam_buffer_novos_individuos, &buffer_novos_individuos);
+    buffer_individuos_melhorados = malloc(sizeof (struct_buffer_individuos) * n_threads);
+    int i;
+    for (i = 0; i < n_threads; i++) {
+        buffer_individuos_inicializa(n_threads, &buffer_individuos_melhorados[i]);
+    }
+    individuos_melhorados = malloc(sizeof (struct_individuos_melhorados) * n_threads);
+    for (i = 0; i < n_threads; i++) {
+        individuos_melhorados[i].individuo = init_solution();
+        individuos_melhorados[i].parent1 = -1;
+    }
+
     sem_init(&sem_mutex_tarefas, 0, 1); //semaforo binario
     sem_init(&sem_is_cheio_tarefas, 0, 0); //semaforo de 0 a tam_buffer_tarefas
     sem_init(&sem_is_vazio_tarefas, 0, tam_buffer_tarefas); //semaforo de 0 a tam_buffer_tarefas
-    sem_init(&sem_preenche_individuos, 0, tam_buffer_novos_individuos); //semaforo de 0 a tam_buffer_novos_individuos
     sem_init(&sem_atualiza_populacao, 0, 0); //semaforo binario
-    sem_init(&sem_mutex_individuos, 0, 1); //semaforo binario
     sem_init(&sem_mutex_populacao, 0, 1); //semaforo binario
     threads = malloc((n_threads + 2) * sizeof (pthread_t));
 
@@ -453,27 +480,24 @@ gcp_solution_t* hca(void) {
 
     best_solution = init_solution();
     best_solution->nof_confl_edges = INT_MAX;
+
+
     create_population();
 
     /*Thread 1 --> Produz*/
     int id = 1;
-    pthread_create(&threads[0], NULL, produz, &id);
+    pthread_create(&threads[0], NULL, produz, (void*) id);
 
     /*Thread 2 --> Consumidor*/
     for (id = 1; id <= n_threads; id++) {
-        int *n = malloc(sizeof (int));
-        *n = id;
-        pthread_create(&threads[id], NULL, consome, n);
+        pthread_create(&threads[id], NULL, consome, (void*) id);
     }
 
     /*Thread 3 --> Atualizar Populacão*/
-    pthread_create(&threads[n_threads + 1], NULL, atualiza_populacao, &id);
+    pthread_create(&threads[n_threads + 1], NULL, atualiza_populacao, (void*) id);
 
-    //espera o criterio de parada do atualizaPopulacao
-    int i;
-    for (i = 0; i < (n_threads + 2); i++) {
-        pthread_join(threads[i], NULL);
-    }
+    //espera o criterio de parada do atualizaPopulacao    
+    pthread_join(threads[n_threads + 1], NULL);
 
     /*Retorno do codigo sequencial*/
     best_solution->spent_time = current_usertime_secs();
